@@ -4,10 +4,10 @@ var superagent = require('superagent');
 var app = express();
 
 function findID (e) {
-        return e.split('/')[2];
+        return e.split('/')[3];
 }
 
-app.get(/^\/getFriendsList\/\w+/, function (req, res) {
+app.get(/^\/bgm\-api\/getFriendsList\/\w+/, function (req, res) {
         var uid = findID(req.url);
         superagent
                 .get('http://bangumi.tv/user/' + uid + '/friends')
@@ -24,7 +24,7 @@ app.get(/^\/getFriendsList\/\w+/, function (req, res) {
                 });
 });
 
-app.get(/^\/getCollectionsList\/\d+/, function (req, res) {
+app.get(/^\/bgm\-api\/getCollectionsList\/\d+/, function (req, res) {
         var sid = findID(req.url);
         superagent
                 .get('http://bangumi.tv/subject/' + sid + '/collections')
@@ -34,7 +34,7 @@ app.get(/^\/getCollectionsList\/\d+/, function (req, res) {
         res.send('I also want to konw who have done subject ' + sid);
 });
 
-app.get(/^\/getDoingsList\/\d+/, function (req, res) {
+app.get(/^\/bgm\-api\/getDoingsList\/\d+/, function (req, res) {
         var sid = findID(req.url);
         superagent
                 .get('http://bangumi.tv/subject/' + sid + '/doings')
