@@ -1,8 +1,8 @@
 # bgm-api
 
-a nodejs app
+a nodejs app, api server for bgm.tv
 
-modules see package.JSON
+modules see package.json
 
 listen on port 3000
 
