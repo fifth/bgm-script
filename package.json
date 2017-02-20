@@ -1,0 +1,23 @@
+{
+  "name": "bgm-api",
+  "version": "1.0.0",
+  "description": "a nodejs app",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fifth/bgm-api.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/fifth/bgm-api/issues"
+  },
+  "homepage": "https://github.com/fifth/bgm-api#readme",
+  "dependencies": {
+    "express": "^4.14.1",
+    "superagent": "^3.4.4"
+  }
+}
