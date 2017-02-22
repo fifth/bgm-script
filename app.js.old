@@ -1,3 +1,15 @@
+/**
+ * api usage (unavailable)
+ *
+ * /getFriendsList/{uid}
+ * /getFriendsList/{uid}?fullInfo=0|1
+ * fullInfo=1表示取全部的信息，0表示仅取id，fullInfo=0时可忽略不写
+ *
+ * /getWatchList/{sid}?action=wishes|collections|doings|on_hold|dropped&fullInfo=0|1
+ * fullInfo=1表示取全部的信息，0表示仅取id，fullInfo=0时可忽略不写
+ * action={action}表示所要获取的列表，分别表示五种状态，默认为collections，默认值可忽略
+ */
+
 var express = require('express');
 var superagent = require('superagent');
 var cheerio = require('cheerio');
