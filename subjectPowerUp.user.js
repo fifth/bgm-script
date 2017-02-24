@@ -42,36 +42,36 @@ function checkIsOnAir() {
     let totalNum = {};
     $('ul#infobox li').each(function () {
         let currentLine = $(this).text().split(': ');
-        if (currentLine[0] == '话数') {
+        if (currentLine[0] === '话数') {
             totalNum = currentLine[1];
         }
-        if (currentLine[0] == '放送开始') {
+        if (currentLine[0] === '放送开始') {
             let start = currentLine[1].match(/\d+/g);
             startDay.setFullYear(start[0]);
             startDay.setMonth(start[1] - 1);
             startDay.setDate(start[2]);
         }
     });
-    if (totalNum && totalNum != '*') {
-        isOnAir = today.getTime() - startDay.getTime() < totalNum * 7 * 24 * 60 * 60 * 1000 ? true : false;
+    if (totalNum && totalNum !== '*') {
+        isOnAir = today.getTime() - startDay.getTime() < totalNum * 7 * 24 * 60 * 60 * 1000;
     }
     else {
         isOnAir = false;
     }
 }
 
-function getQueryInfo() {
-    let queryInfo = {
-        filter: '',
-        page: 1
-    };
-    if (location.search) {
-        location.search.slice(1).split('&').forEach(function (elem) {
-            queryInfo[elem.split('=')[0]] = elem.split('=')[1];
-        });
-    }
-    return queryInfo;
-}
+// function getQueryInfo() {
+//     let queryInfo = {
+//         filter: '',
+//         page: 1
+//     };
+//     if (location.search) {
+//         location.search.slice(1).split('&').forEach(function (elem) {
+//             queryInfo[elem.split('=')[0]] = elem.split('=')[1];
+//         });
+//     }
+//     return queryInfo;
+// }
 
 function getCurrentPathInfo() {
     let info = location.pathname.split('/');
@@ -111,7 +111,7 @@ function updatePageInfo(action) {
     let a_l = $('div.SimpleSidePanel').eq(1).find('[href="/subject/' + currentPathInfo.sid + '/' + action + '"]');
     if (friendsNum[action] > 0) {
         a_l.html(a_l.html().replace(allNum[action], friendsNum[action]));
-        a_l.attr('href', '/subject/' + currentPathInfo.sid + '/' + action +'?filter=friends');
+        a_l.attr('href', '/subject/' + currentPathInfo.sid + '/' + action + '?filter=friends');
     }
     else {
         a_l.html('');
