@@ -34,7 +34,31 @@ let friendsNum = {
 
 let allInfo = '';
 let friendsInfo = '';
-let isOnAir = $('div.SimpleSidePanel').eq(1).find('small').first().text().search(/在看/) > 0 ? true : false;
+let isOnAir = false;
+
+function checkIsOnAir() {
+    let today = new Date();
+    let startDay = new Date();
+    let totalNum = {};
+    $('ul#infobox li').each(function () {
+        let currentLine = $(this).text().split(': ');
+        if (currentLine[0] == '话数') {
+            totalNum = currentLine[1];
+        }
+        if (currentLine[0] == '放送开始') {
+            let start = currentLine[1].match(/\d+/g);
+            startDay.setFullYear(start[0]);
+            startDay.setMonth(start[1] - 1);
+            startDay.setDate(start[2]);
+        }
+    });
+    if (totalNum && totalNum != '*') {
+        isOnAir = today.getTime() - startDay.getTime() < totalNum * 7 * 24 * 60 * 60 * 1000 ? true : false;
+    }
+    else {
+        isOnAir = false;
+    }
+}
 
 function getQueryInfo() {
     let queryInfo = {
@@ -172,9 +196,15 @@ function addAllBtn() {
 }
 
 let currentPathInfo = getCurrentPathInfo();
+
+checkIsOnAir();
+
 countAllNum();
+
 $('div.SimpleSidePanel').eq(1).append('<br><a class="l" onclick="return false;" href="" style="cursor: default">>>查看更多用户请点击上方相应的链接</a>');
+
 if (!allInfo) {
     cacheAllInfo();
 }
+
 addFriendsOnlyBtn();
