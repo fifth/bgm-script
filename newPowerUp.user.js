@@ -34,7 +34,7 @@ let friendsNum = {
 
 let allInfo = '';
 let friendsInfo = '';
-let flag = false;
+let isOnAir = $('div.SimpleSidePanel').eq(1).find('small').first().text().search(/在看/) > 0 ? true : false;
 
 function getQueryInfo() {
     let queryInfo = {
@@ -51,7 +51,7 @@ function getQueryInfo() {
 
 function getCurrentPathInfo() {
     let info = location.pathname.split('/');
-    let sid = info[2] || -1;
+    let sid = info[2] || 0;
     // let action = info[3] || 'collections';
     // let queryInfo = getQueryInfo();
     return {
@@ -85,59 +85,96 @@ function countFriendsNum(sid, action, page) {
 
 function updatePageInfo(action) {
     let a_l = $('div.SimpleSidePanel').eq(1).find('[href="/subject/' + currentPathInfo.sid + '/' + action + '"]');
-    a_l.html(a_l.html().replace(allNum[action], friendsNum[action]));
-    a_l.attr('href', '/subject/' + currentPathInfo.sid + '/' + action +'?filter=friends');
+    if (friendsNum[action] > 0) {
+        a_l.html(a_l.html().replace(allNum[action], friendsNum[action]));
+        a_l.attr('href', '/subject/' + currentPathInfo.sid + '/' + action +'?filter=friends');
+    }
+    else {
+        a_l.html('');
+    }
 }
 
-let currentPathInfo = getCurrentPathInfo();
-countAllNum();
 function switchToFriendsOnly() {
+    if (friendsInfo) {
+        $('div.SimpleSidePanel').eq(1).html(friendsInfo);
+        addAllBtn();
+        return;
+    }
+
     for (let action of ACTIONS) {
         countFriendsNum(currentPathInfo.sid, action, 1);
     }
-    let url = location.origin + '/subject/' + currentPathInfo.sid + '/collections?filter=friends';
-    let top5 = [];
+    let url = location.origin + '/subject/' + currentPathInfo.sid + '/{action}?filter=friends'
+        .replace('{action}', isOnAir ? 'doings' : 'collections');
+    let tops = [];
     $.get(url, function (data) {
-        let friendsInfo = $('ul#memberUserList', $(data)).find('li:lt(5)');
-        friendsInfo.each(function () {
-            top5.push({
+        let info = $('ul#memberUserList', $(data)).find('li:lt(10)');
+        info.each(function () {
+            tops.push({
                 uid: $(this).find('a').attr('href').split('/')[2],
                 img: $(this).find('img').attr('src').replace('/m/', '/s/'),
-                name: $(this).find('a').text().split(' ')[1],
+                name: $(this).find('a').text(),
                 time: $(this).find('p.info').text(),
-                star: $(this).find('span.starstop').attr('class').split(' ')[0]
+                star: $(this).find('span.starstop').attr('class'),
+                comment: $(this).find('div.userContainer').html().split('</p>')[1]
             });
         });
-        $('div.SimpleSidePanel').eq(1).find('li.clearit').each(function (index) {
-            let info = top5[index];
-            $(this).find('a.avatar').attr('href', '/user/' + info.uid);
-            $(this).find('span.avatarNeue').attr('style', 'background-image:url(\'' + info.img + '\')');
-            $(this).find('div.innerWithAvatar a.avatar').text(info.name);
-            if ($(this).find('div.innerWithAvatar span').length > 0) {
-                $(this).find('div.innerWithAvatar span').attr('class', 's' + info.star + ' starsinfo');
-            }
-            else {
-                $('<span class="s' + info.star + ' starsinfo"></span>').insertAfter($(this).find('div.innerWithAvatar a.avatar'));
-            }
-            $(this).find('small').text(info.time);
+        let panel = $('div.SimpleSidePanel').eq(1);
+        panel.find('div.rr').detach();
+        panel.find('ul').empty();
+        tops.forEach(function (item) {
+            panel.find('ul').append(buildElement(item));
         });
-        cacheFriendsInfo();
+        if (!friendsInfo) {
+            cacheFriendsInfo();
+        }
+        addAllBtn();
     });
 }
+
+function switchToAll() {
+    $('div.SimpleSidePanel').eq(1).html(allInfo);
+    addFriendsOnlyBtn();
+}
+
+function buildElement(info) {
+    return '<li class="clearit"><a href="/user/{user_id}" class="avatar"><span class="avatarNeue avatarSize32 ll" style="background-image:url(\'{user_image}\')"></span></a><div class="innerWithAvatar"><a href="/user/{user_id}" class="avatar">{user_name}</a>{user_star}<br><small class="grey">{user_time}</small></div><div style="padding: 0px 5px;">{user_comment}</div></li>'
+        .replace('{user_id}', info.uid)
+        .replace('{user_name}', info.name)
+        .replace('{user_image}', info.img)
+        .replace('{user_star}', info.star ? '<span class="s{stars} starsinfo"></span>'.replace('{stars}', info.star.split(' ')[0]) : '')
+        .replace('{user_time}', info.time + ' ' + (isOnAir ? '在看' : '看过'))
+        .replace('{user_comment}', info.comment);
+}
+
 function cacheAllInfo() {
     allInfo = $('div.SimpleSidePanel').eq(1).html();
 }
+
 function cacheFriendsInfo() {
     friendsInfo = $('div.SimpleSidePanel').eq(1).html();
 }
-cacheAllInfo();
-function addSwitchBtn() {
+
+function addFriendsOnlyBtn() {
     $('div.SimpleSidePanel').eq(1).prepend('<div class="rr"><a href="" class="chiiBtn" style="display: inline;"><span>只看好友</span></a></div>');
     $('div.SimpleSidePanel .chiiBtn').click(function (event) {
         event.preventDefault();
         switchToFriendsOnly();
-        // flag = !flag;
-
     });
 }
-addSwitchBtn();
+
+function addAllBtn() {
+    $('div.SimpleSidePanel').eq(1).prepend('<div class="rr"><a href="" class="chiiBtn" style="display: inline;"><span>看所有人</span></a></div>');
+    $('div.SimpleSidePanel .chiiBtn').click(function (event) {
+        event.preventDefault();
+        switchToAll();
+    });
+}
+
+let currentPathInfo = getCurrentPathInfo();
+countAllNum();
+$('div.SimpleSidePanel').eq(1).append('<br><a class="l" onclick="return false;" href="" style="cursor: default">>>查看更多用户请点击上方相应的链接</a>');
+if (!allInfo) {
+    cacheAllInfo();
+}
+addFriendsOnlyBtn();
