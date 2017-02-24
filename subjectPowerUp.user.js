@@ -3,7 +3,7 @@
 // @namespace    fifth26.com
 // @version      1.0.1
 // @description  subject page power up ver2.0
-// @author       fifth(aslo thanks to everpcpc)
+// @author       fifth(also thanks to everpcpc)
 // @include      /^https?://(bgm\.tv|chii\.in|bangumi\.tv)/subject/\d+$/
 // @encoding     utf-8
 // ==/UserScript==
