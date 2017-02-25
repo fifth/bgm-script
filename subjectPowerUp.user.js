@@ -121,7 +121,6 @@ function updatePageInfo(action) {
 function switchToFriendsOnly() {
     if (friendsInfo) {
         $('div.SimpleSidePanel').eq(1).html(friendsInfo);
-        addAllBtn();
         return;
     }
 
@@ -152,13 +151,11 @@ function switchToFriendsOnly() {
         if (!friendsInfo) {
             cacheFriendsInfo();
         }
-        addAllBtn();
     });
 }
 
 function switchToAll() {
     $('div.SimpleSidePanel').eq(1).html(allInfo);
-    addFriendsOnlyBtn();
 }
 
 function buildElement(info) {
@@ -179,19 +176,14 @@ function cacheFriendsInfo() {
     friendsInfo = $('div.SimpleSidePanel').eq(1).html();
 }
 
-function addFriendsOnlyBtn() {
-    $('div.SimpleSidePanel').eq(1).prepend('<div class="rr"><a href="" class="chiiBtn" style="display: inline;"><span>只看好友</span></a></div>');
-    $('div.SimpleSidePanel .chiiBtn').click(function (event) {
-        event.preventDefault();
-        switchToFriendsOnly();
-    });
-}
-
-function addAllBtn() {
-    $('div.SimpleSidePanel').eq(1).prepend('<div class="rr"><a href="" class="chiiBtn" style="display: inline;"><span>看所有人</span></a></div>');
-    $('div.SimpleSidePanel .chiiBtn').click(function (event) {
-        event.preventDefault();
-        switchToAll();
+function addFriendsOnlyToggle() {
+    $('div.SimpleSidePanel').eq(1).before('<label class="switch"><input id="toggle_friend_only" type="checkbox" name="friends_only">只看好友</input><div class="slider round"></div></label>');
+    $('#toggle_friend_only').change(function (event) {
+        if (event.target.checked) {
+            switchToFriendsOnly();
+        } else {
+            switchToAll();
+        }
     });
 }
 
@@ -201,10 +193,9 @@ checkIsOnAir();
 
 countAllNum();
 
-$('div.SimpleSidePanel').eq(1).append('<br><a class="l" onclick="return false;" href="" style="cursor: default">>>查看更多用户请点击上方相应的链接</a>');
-
 if (!allInfo) {
     cacheAllInfo();
 }
 
-addFriendsOnlyBtn();
+addFriendsOnlyToggle();
+
