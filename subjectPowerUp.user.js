@@ -121,6 +121,7 @@ function updatePageInfo(action) {
 function switchToFriendsOnly() {
     if (friendsInfo) {
         $('div.SimpleSidePanel').eq(1).html(friendsInfo);
+        $('#toggle_friend_only').attr("checked","checked");
         return;
     }
 
@@ -151,11 +152,13 @@ function switchToFriendsOnly() {
         if (!friendsInfo) {
             cacheFriendsInfo();
         }
+        $('#toggle_friend_only').attr("checked","checked");
     });
 }
 
 function switchToAll() {
     $('div.SimpleSidePanel').eq(1).html(allInfo);
+    $('#toggle_friend_only').attr("checked",null);
 }
 
 function buildElement(info) {
