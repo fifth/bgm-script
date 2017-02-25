@@ -177,7 +177,7 @@ function cacheFriendsInfo() {
 }
 
 function addFriendsOnlyToggle() {
-    $('div.SimpleSidePanel').eq(1).before('<label class="switch"><input id="toggle_friend_only" type="checkbox" name="friends_only">只看好友</input><div class="slider round"></div></label>');
+    $('div.SimpleSidePanel').eq(1).before('<input id="toggle_friend_only" type="checkbox" name="friends_only">只看好友</input>');
     $('#toggle_friend_only').change(function (event) {
         if (event.target.checked) {
             switchToFriendsOnly();
