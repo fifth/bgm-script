@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         subjectPowerUp
 // @namespace    fifth26.com
-// @version      1.1.0
+// @version      1.1.1
 // @description  subject page power up ver2.0
 // @author       fifth | everpcpc
 // @include      /^https?://(bgm\.tv|chii\.in|bangumi\.tv)/subject/\d+$/
@@ -162,12 +162,12 @@ function switchToAll() {
 
 function buildElement(info) {
     return '<li class="clearit"><a href="/user/{user_id}" class="avatar"><span class="avatarNeue avatarSize32 ll" style="background-image:url(\'{user_image}\')"></span></a><div class="innerWithAvatar"><a href="/user/{user_id}" class="avatar">{user_name}</a>{user_star}<br><small class="grey">{user_time}</small></div><div style="padding: 0px 5px;">{user_comment}</div></li>'
-        .replace('{user_id}', info.uid)
-        .replace('{user_name}', info.name)
-        .replace('{user_image}', info.img)
-        .replace('{user_star}', info.star ? '<span class="s{stars} starsinfo"></span>'.replace('{stars}', info.star.split(' ')[0]) : '')
-        .replace('{user_time}', info.time + ' ' + (isOnAir ? '在看' : '看过'))
-        .replace('{user_comment}', info.comment);
+        .replace(/\{user\_id\}/g, info.uid)
+        .replace(/\{user\_name\}/g, info.name)
+        .replace(/\{user\_image\}/g, info.img)
+        .replace(/\{user\_star\}/g, info.star ? '<span class="s{stars} starsinfo"></span>'.replace('{stars}', info.star.split(' ')[0]) : '')
+        .replace(/\{user\_time\}/g, info.time + ' ' + (isOnAir ? '在看' : '看过'))
+        .replace(/\{user\_comment\}/g, info.comment);
 }
 
 function cacheAllInfo() {
