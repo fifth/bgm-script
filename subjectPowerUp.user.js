@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         subjectPowerUp
 // @namespace    fifth26.com
-// @version      1.0.1
+// @version      1.1.0
 // @description  subject page power up ver2.0
-// @author       fifth(also thanks to everpcpc)
+// @author       fifth | everpcpc
 // @include      /^https?://(bgm\.tv|chii\.in|bangumi\.tv)/subject/\d+$/
 // @encoding     utf-8
 // ==/UserScript==
@@ -32,8 +32,8 @@ let friendsNum = {
     dropped: 0
 };
 
-let allInfo = '';
-let friendsInfo = '';
+let allInfo = {};
+let friendsInfo = {};
 let isOnAir = false;
 
 function checkIsOnAir() {
@@ -119,8 +119,9 @@ function updatePageInfo(action) {
 }
 
 function switchToFriendsOnly() {
-    if (friendsInfo) {
-        $('div.SimpleSidePanel').eq(1).html(friendsInfo);
+    if (friendsInfo.ul) {
+        $('div.SimpleSidePanel').eq(1).find('ul.groupsLine').html(friendsInfo.ul);
+        $('div.SimpleSidePanel').eq(1).find('span.tip_i').html(friendsInfo.span);
         $('#toggle_friend_only').attr("checked","checked");
         return;
     }
@@ -144,21 +145,19 @@ function switchToFriendsOnly() {
             });
         });
         let panel = $('div.SimpleSidePanel').eq(1);
-        panel.find('div.rr').detach();
         panel.find('ul').empty();
         tops.forEach(function (item) {
             panel.find('ul').append(buildElement(item));
         });
-        if (!friendsInfo) {
-            cacheFriendsInfo();
-        }
         $('#toggle_friend_only').attr("checked","checked");
     });
 }
 
 function switchToAll() {
-    $('div.SimpleSidePanel').eq(1).html(allInfo);
+    $('div.SimpleSidePanel').eq(1).find('ul.groupsLine').html(allInfo.ul);
+    $('div.SimpleSidePanel').eq(1).find('span.tip_i').html(allInfo.span);
     $('#toggle_friend_only').attr("checked",null);
+
 }
 
 function buildElement(info) {
@@ -172,33 +171,42 @@ function buildElement(info) {
 }
 
 function cacheAllInfo() {
-    allInfo = $('div.SimpleSidePanel').eq(1).html();
+    allInfo.ul = $('div.SimpleSidePanel').eq(1).find('ul.groupsLine').html();
+    allInfo.span = $('div.SimpleSidePanel').eq(1).find('span.tip_i').html();
+    console.log(allInfo.span);
 }
 
 function cacheFriendsInfo() {
-    friendsInfo = $('div.SimpleSidePanel').eq(1).html();
+    friendsInfo.ul = $('div.SimpleSidePanel').eq(1).find('ul.groupsLine').html();
+    friendsInfo.span = $('div.SimpleSidePanel').eq(1).find('span.tip_i').html();
+    console.log(friendsInfo.span);
 }
 
 function addFriendsOnlyToggle() {
-    $('div.SimpleSidePanel').eq(1).before('<input id="toggle_friend_only" type="checkbox" name="friends_only">只看好友</input>');
+    $('div.SimpleSidePanel').eq(1).prepend('<div class="rr"><h2 style="display: inline-block">只看好友</h2><input id="toggle_friend_only" type="checkbox" name="friends_only"></input></div>');
+    $('input#toggle_friend_only').css({
+        'height': '15px',
+        'width': '15px',
+        'position': 'relative',
+        'top': '4px',
+        'right': '3px'
+    });
     $('#toggle_friend_only').change(function (event) {
         if (event.target.checked) {
+            if (!allInfo.ul) {
+                cacheAllInfo();
+            }
             switchToFriendsOnly();
         } else {
+            if (!friendsInfo.ul) {
+                cacheFriendsInfo();
+            }
             switchToAll();
         }
     });
 }
 
 let currentPathInfo = getCurrentPathInfo();
-
 checkIsOnAir();
-
 countAllNum();
-
-if (!allInfo) {
-    cacheAllInfo();
-}
-
 addFriendsOnlyToggle();
-
