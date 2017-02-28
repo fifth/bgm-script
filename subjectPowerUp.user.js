@@ -1,12 +1,14 @@
 // ==UserScript==
 // @name         subjectPowerUp
 // @namespace    fifth26.com
-// @version      1.2.0
+// @version      1.3.0
 // @description  条目页面优化：看看你的好友是否喜欢
 // @author       fifth | aslo thanks to @everpcpc's contributions.
 // @include      /^https?://(bgm\.tv|chii\.in|bangumi\.tv)/subject/\d+$/
 // @encoding     utf-8
 // ==/UserScript==
+
+const CURRENT_VERSION = '1.3.0';
 
 const ACTIONS = [
     'wishes',
@@ -22,6 +24,17 @@ const ACTION_LANG = {
     '音乐': ['在听', '听过'],
     '游戏': ['在玩', '玩过'],
     '三次元': ['在看', '看过']
+};
+
+const DEFAULT_SETTINGS = {
+    doingsNum: 5,
+    collectionsNum: 10,
+    starredOnly: false,
+    commentedOnly: false,
+    fold: {
+        doings: false,
+        collections: false
+    }
 };
 
 let allNum = {
@@ -43,29 +56,40 @@ let friendsNum = {
 let allInfo = {};
 let friendsInfo = {};
 
-let settings = {
-    doingsNum: 5,
-    collectionsNum: 10,
-    staredOnly: false,
-    commentedOnly: false
-};
-
 let tops = {
     doings: [],
     collections: []
 };
+
 let isReady = {
+    doings: false,
+    collections: false
+};
+let isFolded = {
     doings: false,
     collections: false
 };
 
 let checkBoxLock = 0;
-let loadingImgUrl = 'http://bgm.tv/img/loadingAnimation.gif';
-let loadingElement = `<li class="clearit"
-                         style="background-image: url(${loadingImgUrl}); height: 4px; background-repeat: no-repeat;">
-                     </li>`;
+
+const LOADING_IMG_URL = 'http://bgm.tv/img/loadingAnimation.gif';
+const LOADING_ELEMENT_HTML =
+    `<li class="clearit" style="background-image: url(${LOADING_IMG_URL});
+                                height: 4px;
+                                background-repeat: no-repeat;"></li>`;
+const addOnsHTML =
+    `<div class="rr">
+        <h2 style="display: inline; cursor: pointer;">设置</h2>
+        <h2 style="display: inline">只看好友</h2>
+        <input id="toggle_friend_only" type="checkbox" name="friends_only" />
+    </div>`;
+
+let toggleBox;
+let settingsMenu;
+let settings;
 
 function getCurrentPathInfo() {
+    // disable some prototype
     let info = location.pathname.split('/');
     let sid = info[2] || 0;
     // let action = info[3] || 'collections';
@@ -79,7 +103,7 @@ function getCurrentPathInfo() {
 }
 
 function countAllNum() {
-    $('div.SimpleSidePanel').eq(1).find('a.l').each(function (index) {
+    panel.find('a.l').each(function (index) {
         allNum[ACTIONS[index]] = $(this).html().match(/\d+/)[0];
     });
 }
@@ -100,7 +124,7 @@ function countFriendsNum(sid, action, page) {
 }
 
 function updatePageInfo(action) {
-    let aL = $('div.SimpleSidePanel').eq(1).find('[href="/subject/' + currentPathInfo.sid + '/' + action + '"]');
+    let aL = panel.find('[href="/subject/' + currentPathInfo.sid + '/' + action + '"]');
     if (friendsNum[action] > 0) {
         aL.html(aL.html().replace(allNum[action], friendsNum[action]));
         aL.attr('href', '/subject/' + currentPathInfo.sid + '/' + action + '?filter=friends');
@@ -110,40 +134,95 @@ function updatePageInfo(action) {
     }
     checkBoxLock += 1;
     if (checkBoxLock >= 5) {
-        $('#toggle_friend_only').removeAttr('disabled');
+        toggleBox.removeAttr('disabled');
     }
 }
 
 function switchToAll() {
-    $('div.SimpleSidePanel').eq(1).find('ul.groupsLine').html(allInfo.ul);
-    $('div.SimpleSidePanel').eq(1).find('span.tip_i').html(allInfo.span);
-    $('#toggle_friend_only').attr('checked', null);
-    $('#toggle_friend_only').removeAttr('disabled');
+    panel.find('div.rr h2:first').css({
+        'visibility': 'hidden'
+    });
+    panel.find('ul.groupsLine').html(allInfo.ul);
+    panel.find('span.tip_i').html(allInfo.span);
+    toggleBox.attr('checked', null);
+    toggleBox.removeAttr('disabled');
 }
 
-function switchToFriendsOnly() {
+function switchToFriendsOnly(countPage = true) {
+    panel.find('div.rr h2:first').css({
+        'visibility': 'visible'
+    });
     if (friendsInfo.ul || friendsInfo.span) {
-        $('div.SimpleSidePanel').eq(1).find('ul.groupsLine').html(friendsInfo.ul);
-        $('div.SimpleSidePanel').eq(1).find('span.tip_i').html(friendsInfo.span);
-        $('#toggle_friend_only').attr('checked', 'checked');
-        $('#toggle_friend_only').removeAttr('disabled');
+        panel.find('ul.groupsLine').html(friendsInfo.ul);
+        panel.find('span.tip_i').html(friendsInfo.span);
+        toggleBox.attr('checked', 'checked');
+        toggleBox.removeAttr('disabled');
+        addFoldAction(0, tops.doings.length);
+        addFoldAction(tops.doings.length + 1, tops.collections.length);
         return;
     }
 
-    $('div.SimpleSidePanel').eq(1).find('ul.groupsLine').html(loadingElement);
-    for (let action of ACTIONS) {
-        countFriendsNum(currentPathInfo.sid, action, 1);
+    panel.find('ul.groupsLine').html(LOADING_ELEMENT_HTML);
+    if (countPage) {
+        for (let action of ACTIONS) {
+            countFriendsNum(currentPathInfo.sid, action, 1);
+        }
     }
     listRequest('doings');
     listRequest('collections');
 }
 
-function listRequest(action) {
-    let url = `${location.origin}/subject/${currentPathInfo.sid}/${action}?filter=friends`;
+function addFoldAction(start, end) {
+    let action = panel.find(`ul li:eq(${start})`).attr('id');
+    let target = panel.find(`ul li:gt(${start}):lt(${end})`);
+    let source = panel.find('ul li').eq(start);
+    source.click(function () {
+        if (isFolded[action]) {
+            target.slideDown();
+            isFolded[action] = false;
+            $(this).css({
+                'background-color': '#fff',
+            });
+            console.log(isFolded);
+        }
+        else {
+            target.slideUp();
+            isFolded[action] = true;
+            $(this).css({
+                'background-color': '#eee',
+            });
+            console.log(isFolded);
+        }
+    });
+    if (isFolded[action]) {
+        target.slideUp();
+        source.css({
+            'background-color': '#eee',
+        });
+    }
+    else {
+        target.slideDown();
+        source.css({
+            'background-color': '#fff',
+        });
+    }
+}
+
+function listRequest(action, page = 1, limit = settings[action + 'Num']) {
+    let url = `${location.origin}/subject/${currentPathInfo.sid}/${action}?filter=friends&page=${page}`;
     $.get(url, function (data) {
         let count = 0;
-        let info = $('ul#memberUserList', $(data)).find('li').each(function () {
-            if (count >= settings[action + 'Num']) {
+        let infoList = $('ul#memberUserList', $(data)).find('li');
+        infoList.each(function () {
+            if (count >= limit) {
+                return;
+            }
+            let starInfo = $(this).find('span.starstop').attr('class');
+            if (settings.starredOnly && !starInfo) {
+                return;
+            }
+            let commentInfo = $(this).find('div.userContainer').html().split('</p>')[1];
+            if (settings.commentedOnly && !commentInfo) {
                 return;
             }
             tops[action].push({
@@ -151,50 +230,62 @@ function listRequest(action) {
                 img: $(this).find('img').attr('src').replace('/m/', '/s/'),
                 name: $(this).find('a').text(),
                 time: $(this).find('p.info').text(),
-                star: $(this).find('span.starstop').attr('class'),
-                comment: $(this).find('div.userContainer').html().split('</p>')[1]
+                star: starInfo,
+                comment: commentInfo
             });
             count += 1;
         });
-        isReady[action] = true;
-        if (isReady.doings && isReady.collections) {
-            buildList(tops.doings, tops.collections);
+        if (infoList.length >= 20) {
+            listRequest(action, page + 1, limit - count);
+        }
+        else {
+            isReady[action] = true;
+            if (isReady.doings && isReady.collections) {
+                panel.find('ul').empty();
+                buildList('doings', lang[0]);
+                buildList('collections', lang[1]);
+                addFoldAction(0, tops.doings.length);
+                addFoldAction(tops.doings.length + 1, tops.collections.length);
+                toggleBox.attr('checked', 'checked');
+            }
         }
     });
 }
 
-function buildListTitle(yet, action) {
-    return `<li class="clearit"><div style="padding: 0px 5px; text-align: center;">${yet}${action}的好友</div></li>`;
+function buildList(action, lang) {
+    if (tops[action].length > 0) {
+        panel.find('ul').append(buildListTitle(action, `现在${lang}的好友`));
+        let startIndex = panel.find('ul li').length - 1;
+        tops[action].forEach(function (item) {
+            panel.find('ul').append(buildElement(item, lang));
+        });
+        let endIndex = panel.find('ul li').length - 1;
+        panel.find('ul li').eq(startIndex).css({
+            'cursor': 'pointer'
+        });
+        if (settings.fold[action]) {
+            panel.find('ul li').eq(startIndex).click();
+        }
+    } else {
+        panel.find('ul').append(buildListTitle(action, `没有符合条件的${lang}好友`));
+    }
 }
 
-function buildList(doingsTops, collectionsTops) {
-    let panel = $('div.SimpleSidePanel').eq(1);
-    panel.find('ul').empty();
-    if (doingsTops.length > 0) {
-        panel.find('ul').append(buildListTitle('现在', lang[0]));
-        doingsTops.forEach(function (item) {
-            panel.find('ul').append(buildElement(item, 0));
-        });
-    } else {
-        panel.find('ul').append(buildListTitle('没有', lang[0]));
-    }
-    if (collectionsTops.length > 0) {
-        panel.find('ul').append(buildListTitle('已经', lang[1]));
-        collectionsTops.forEach(function (item) {
-            panel.find('ul').append(buildElement(item, 0));
-        });
-    } else {
-        panel.find('ul').append(buildListTitle('没有', lang[1]));
-    }
-    $('#toggle_friend_only').attr('checked', 'checked');
+function buildListTitle(action, lang) {
+    return `<li class="clearit" id="${action}">
+                <div style="padding: 0px 5px; text-align: center;">
+                    ${lang}
+                </div>
+            </li>`;
 }
 
-function buildElement(info, status) {
+function buildElement(info, lang) {
     let starInfo = info.star ? `<span class="s${info.star.split(' ')[0]} starsinfo"></span>` : '';
-    let timeInfo = info.time + ' ' + lang[status];
+    let timeInfo = info.time + ' ' + lang;
     return `<li class="clearit">
                 <a href="/user/${info.uid}" class="avatar">
-                    <span class="avatarNeue avatarSize32 ll" style="background-image:url(\'${info.img}\')"></span>
+                    <span class="avatarNeue avatarSize32 ll"
+                        style="background-image:url(\'${info.img}\')"></span>
                 </a>
                 <div class="innerWithAvatar">
                     <a href="/user/${info.uid}" class="avatar">${info.name}</a>
@@ -207,62 +298,207 @@ function buildElement(info, status) {
 }
 
 function cacheAllInfo() {
-    allInfo.ul = $('div.SimpleSidePanel').eq(1).find('ul.groupsLine').html();
-    allInfo.span = $('div.SimpleSidePanel').eq(1).find('span.tip_i').html();
+    allInfo.ul = panel.find('ul.groupsLine').html();
+    allInfo.span = panel.find('span.tip_i').html();
 }
 
 function cacheFriendsInfo() {
-    friendsInfo.ul = $('div.SimpleSidePanel').eq(1).find('ul.groupsLine').html();
-    friendsInfo.span = $('div.SimpleSidePanel').eq(1).find('span.tip_i').html();
+    friendsInfo.ul = panel.find('ul.groupsLine').html();
+    friendsInfo.span = panel.find('span.tip_i').html();
 }
 
 function addFriendsOnlyToggle() {
-    $('div.SimpleSidePanel').eq(1).prepend(`<div class="rr">
-                                                <h2 style="display: inline">只看好友</h2>
-                                                <input id="toggle_friend_only" type="checkbox" name="friends_only" />
-                                            </div>`);
-    $('input#toggle_friend_only').css({
-        height: '15px',
-        width: '15px',
-        position: 'relative',
-        top: '4px',
-        right: '3px'
+    panel.prepend(addOnsHTML);
+    toggleBox = $('input#toggle_friend_only');
+    toggleBox.css({
+        'height': '15px',
+        'width': '15px',
+        'position': 'relative',
+        'top': '4px',
+        'right': '3px'
     });
-    $('#toggle_friend_only').change(function (event) {
+    toggleBox.change(function (event) {
         $(this).attr('disabled', 'disabled');
         if (event.target.checked) {
             if (!allInfo.ul && !allInfo.span) {
                 cacheAllInfo();
             }
-            localStorage.setItem('bgm_subject_friends_only', 'friends_only');
+            localStorage.setItem('fifth_bgm_subject_userjs_is_friends_only', 'friends_only');
             switchToFriendsOnly();
         }
         else {
             if (!friendsInfo.ul && !friendsInfo.span) {
                 cacheFriendsInfo();
             }
-            localStorage.removeItem('bgm_subject_friends_only');
+            localStorage.removeItem('fifth_bgm_subject_userjs_is_friends_only');
             switchToAll();
         }
     });
 }
 
+function addSettingsMenu() {
+    const MENU_CONTENT_HTML =
+        `<div class="settings">
+            <div>设置中心，请设置成合理的值</div>
+            <div>
+                在〇好友数量上限
+                <input id="doingsNum" type="text" value="${settings.doingsNum}">
+            </div>
+            <div>
+                〇过好友数量上限
+                <input id="collectionsNum" type="text" value="${settings.collectionsNum}">
+            </div>
+            <div>
+                不显示未打分好友
+                <input id="starredOnly" type="checkbox" ${settings.starredOnly ? 'checked' : ''}>
+            </div>
+            <div>
+                不显示未评论好友
+                <input id="commentedOnly" type="checkbox" ${settings.commentedOnly ? 'checked' : ''}>
+            </div>
+            <div>
+                默认折叠在〇列表
+                <input id="foldDoings" type="checkbox" ${settings.fold.doings ? 'checked' : ''}>
+            </div>
+            <div>
+                默认折叠〇过列表
+                <input id="foldCollections" type="checkbox" ${settings.fold.collections ? 'checked' : ''}>
+            </div>
+            <a id="settings_save" class="l">保存并刷新</a>
+            <a id="settings_cancel" class="l">取消并退出</a>
+            <a id="settings_default" class="l">填写默认值</a>
+        </div>`;
+    panel.before(MENU_CONTENT_HTML);
+    settingsMenu = $('div.settings');
+    panel.find('div.rr h2:first').toggle(
+        function () {
+            settingsMenu.slideDown();
+        },
+        function () {
+            settingsMenu.slideUp();
+        }
+    );
+    settingsMenu.css({
+        'margin-bottom': '5px',
+        'display': 'none'
+    });
+    settingsMenu.find('div:first').css({
+        'text-align': 'center',
+        'color': '#0084b4'
+    });
+    settingsMenu.find('div:gt(0)').css({
+        'margin-left': '45px'
+    });
+    settingsMenu.find('[type="text"]').css({
+        'display': 'inline',
+        'width': '25px',
+        'margin-left': '10px'
+    });
+    settingsMenu.find('[type="checkbox"]').css({
+        'display': 'inline',
+        'top': '3px',
+        'margin-left': '10px',
+        'position': 'relative'
+    });
+    settingsMenu.find('a').css({
+        'margin-left': '10px',
+        'cursor': 'pointer'
+    });
+    settingsMenu.find('a').click(function () {
+        switch ($(this).attr('id')) {
+            case 'settings_save':
+                settings = {
+                    doingsNum: parseInt($('input#doingsNum').val(), 10),
+                    collectionsNum: parseInt($('input#collectionsNum').val(), 10),
+                    starredOnly: $('input#starredOnly').attr('checked') ? true : false,
+                    commentedOnly: $('input#commentedOnly').attr('checked') ? true : false,
+                    fold:{
+                        doings: $('input#foldDoings').attr('checked') ? true : false,
+                        collections: $('input#foldCollections').attr('checked') ? true : false
+                    }
+                };
+                localStorage.setItem('fifth_bgm_subject_userjs_settings', JSON.stringify(settings));
+                friendsInfo = {};
+                tops = {
+                    doings: [],
+                    collections: []
+                };
+                switchToFriendsOnly(false);
+                break;
+            case 'settings_cancel':
+                settingsMenu.slideUp();
+                settingsMenuWrite(settings);
+                break;
+            case 'settings_default':
+                settingsMenuWrite(DEFAULT_SETTINGS);
+                break;
+            default:
+                break;
+        }
+    });
+}
+
+function settingsMenuWrite(settings) {
+    $('input#doingsNum').val(settings.doingsNum);
+    $('input#collectionsNum').val(settings.collectionsNum);
+    if (settings.starredOnly) {
+        $('input#starredOnly').attr('checked', 'checked');
+    }
+    else {
+        $('input#starredOnly').removeAttr('checked');
+    }
+    if (settings.commentedOnly) {
+        $('input#commentedOnly').attr('checked', 'checked');
+    }
+    else {
+        $('input#commentedOnly').removeAttr('checked');
+    }
+    if (settings.fold.doings) {
+        $('input#foldDoings').attr('checked', 'checked');
+    }
+    else {
+        $('input#foldDoings').removeAttr('checked');
+    }
+    if (settings.fold.collections) {
+        $('input#foldCollections').attr('checked', 'checked');
+    }
+    else {
+        $('input#foldCollections').removeAttr('checked');
+    }
+}
+
+if (!localStorage.getItem('fifth_bgm_subject_userjs_version')
+    || localStorage.getItem('fifth_bgm_subject_userjs_version') != CURRENT_VERSION
+) {
+    localStorage.removeItem('fifth_bgm_subject_userjs_settings');
+    localStorage.removeItem('fifth_bgm_subject_userjs_is_friends_only');
+    localStorage.setItem('fifth_bgm_subject_userjs_version', CURRENT_VERSION);
+}
+
+if (localStorage.getItem('fifth_bgm_subject_userjs_settings')) {
+    settings = JSON.parse(localStorage.getItem('fifth_bgm_subject_userjs_settings'));
+} else {
+    settings = DEFAULT_SETTINGS;
+    localStorage.setItem('fifth_bgm_subject_userjs_settings', JSON.stringify(settings));
+}
+isFolded.doings = settings.fold.doings;
+isFolded.collections = settings.fold.collections;
+console.log(isFolded);
+
 let currentPathInfo = getCurrentPathInfo();
 let subjectType = $('.focus.chl').text().trim();
 let lang = ACTION_LANG.hasOwnProperty(subjectType) ? ACTION_LANG[subjectType] : ['在看', '看过'];
-// let isOnAir = checkIsOnAir();
+let panel = $('div.SimpleSidePanel:eq(1)');
 
 countAllNum();
 addFriendsOnlyToggle();
+addSettingsMenu();
 
-if (localStorage.getItem('bgm_subject_friends_only')
-    && localStorage.getItem('bgm_subject_friends_only') === 'friends_only'
+if (localStorage.getItem('fifth_bgm_subject_userjs_is_friends_only')
+    && localStorage.getItem('fifth_bgm_subject_userjs_is_friends_only') === 'friends_only'
 ) {
-    $('#toggle_friend_only').click();
+    toggleBox.click();
 }
-
-// 一些变量和和函数的调整
-// 同时加载在看和看过的好友
 
 // ----- 以下为目前未被使用的函数，不确定是否未来会重新启用故注释置底 -----
 
@@ -299,6 +535,7 @@ if (localStorage.getItem('bgm_subject_friends_only')
 //         return false;
 //     }
 // }
+// let isOnAir = checkIsOnAir();
 
 // -- 2 --
 // 获取url请求内容，以对象形式返回，暂时用不到
@@ -314,3 +551,4 @@ if (localStorage.getItem('bgm_subject_friends_only')
 //     }
 //     return queryInfo;
 // }
+// let queryInfo = getQueryInfo();
